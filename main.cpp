@@ -230,7 +230,7 @@ bool verificationTest(int verify_step, bool shuffle) {
         CQ.insert({iter->first,iter->second});
         if(++acc % verify_step == 0) if(!verify(CH,CQ,data,acc)) {
             std::cout << "failed at insertion " << acc << " ";
-            //return false;
+            return false;
         }
     }
 
