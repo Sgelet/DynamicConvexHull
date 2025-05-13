@@ -3,9 +3,9 @@
 #include <chrono>
 #include <cstring>
 #include <cmath>
-#include "CHTree.h"
-#include "CQTree.h"
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include "include/CHTree.h"
+#include "include/CQTree.h"
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/convex_hull_2.h>
 #include <CGAL/ch_graham_andrew.h>
 
@@ -78,7 +78,7 @@ void runtimeTest(const int test, const int window_size){
 
     std::vector<Point_2> out = {};
 
-    std::cout << "Inserting"<<std::endl;
+    std::cout << "Running"<<std::endl;
 
     auto t0 = hrc::now();
     auto t1 = hrc::now();
@@ -145,23 +145,6 @@ void runtimeTest(const int test, const int window_size){
         out.clear();
     }
 
-    /*
-    std::shuffle(data.begin(),data.end(),engine);
-
-    t0 = hrc::now();
-    t1 = hrc::now();
-    acc = t1 - t0;
-    std::cout << "Removing"<<std::endl;
-    for(size_t i=0; i<data.size()/window_size; i++) {
-        t0 = hrc::now();
-        for (size_t j = i * window_size; j < (i + 1) * window_size; j++) {
-            CH.remove(data[j].first, data[j].second);
-        }
-        t1 = hrc::now();
-        acc += t1 - t0;
-        std::cout << (data.size()/window_size)*window_size - i * window_size << " " << (t1 - t0).count() * 1e-9 << " " << acc.count() * 1e-9 << std::endl;
-    }
-     */
 }
 
 int main(int argc, char* argv[]){
@@ -185,18 +168,41 @@ int main(int argc, char* argv[]){
 }
 
 
-bool verify(CHTree<K>& CH, std::vector<std::pair<double,double>>& data, int size){
+bool verify(CHTree<K>& CH, CQTree<K>& CQ, std::vector<std::pair<double,double>>& data, int size){
     std::vector<Point_2> out = {};
     std::vector<Point_2> temp;
     temp.reserve(size);
     for(int i=0; i<size; i++){
         temp.emplace_back(data[i].first,data[i].second);
     }
-    //CGAL::upper_hull_points_2(temp.begin(), temp.end(),std::back_inserter(out));
-    CGAL::lower_hull_points_2(temp.begin(), temp.end(),std::back_inserter(out));
-    auto res = CH.lowerHullPoints();
+    CGAL::upper_hull_points_2(temp.begin(), temp.end(),std::back_inserter(out));
+    auto res = CH.upperHullPoints();
     for(int i=0; i<res.size(); i++){
         if(res[i].x() != out[i].x() || res[i].y() != out[i].y()){
+            std::cout << "CH failure on upper ";
+            return false;
+        }
+    }
+    res = CQ.upperHullPoints();
+    for(int i=0; i<res.size(); i++){
+        if(res[i].x() != out[i].x() || res[i].y() != out[i].y()){
+            std::cout << "CQ failure on upper ";
+            return false;
+        }
+    }
+    out.clear();
+    CGAL::lower_hull_points_2(temp.begin(), temp.end(),std::back_inserter(out));
+    res = CH.lowerHullPoints();
+    for(int i=0; i<res.size(); i++){
+        if(res[i].x() != out[i].x() || res[i].y() != out[i].y()){
+            std::cout << "CH failure on lower ";
+            return false;
+        }
+    }
+    res = CQ.lowerHullPoints();
+    for(int i=0; i<res.size(); i++){
+        if(res[i].x() != out[i].x() || res[i].y() != out[i].y()){
+            std::cout << "CQ failure on lower ";
             return false;
         }
     }
@@ -209,6 +215,7 @@ bool verificationTest(int verify_step, bool shuffle) {
     std::mt19937 g(rd());
     std::vector<std::pair<double,double>> data;
     auto CH = CHTree<K>();
+    auto CQ = CQTree<K>();
     double x;
     double y;
     while(std::cin >> x){
@@ -220,14 +227,22 @@ bool verificationTest(int verify_step, bool shuffle) {
     int acc = 0;
     for(auto iter = data.begin(); iter != data.end(); ++iter) {
         CH.insert({iter->first,iter->second});
-        if(++acc % verify_step == 0) if(!verify(CH,data,acc)) return false;
+        CQ.insert({iter->first,iter->second});
+        if(++acc % verify_step == 0) if(!verify(CH,CQ,data,acc)) {
+            std::cout << "failed at insertion " << acc << " ";
+            //return false;
+        }
     }
 
     // Now remove things
     if(shuffle) std::shuffle(data.begin(),data.end(),g);
     for(auto riter = data.rbegin(); riter != data.rend(); ++riter){
         CH.remove({riter->first,riter->second});
-        if(--acc % verify_step == 0) if(!verify(CH,data,acc)) return false;
+        CQ.remove({riter->first,riter->second});
+        if(--acc % verify_step == 0) if(!verify(CH,CQ,data,acc)) {
+            std::cout << "failed at removal "<< acc << " ";
+            return false;
+        }
     }
 
     return true;

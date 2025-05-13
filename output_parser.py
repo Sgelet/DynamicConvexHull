@@ -2,10 +2,13 @@ import sys
 import matplotlib.pyplot as plt
 
 trans = {
-    "uCH" : ["Eilice", "blue", '-'],
-    "uCQ" : ["OvL", "orange", '--'],
-    "CGAL" : ["Eddy", "green", '-.'],
-    "GA" : ["GA", "red", ':']
+    "CH" : ["Eilice", "blue", '-'],
+    "oCH" : ["Eilice (inexact)", "blue", ':'],
+    "CQ" : ["Simplified OvL", "orange", '-'],
+    "ED" : ["Eddy", "green", '-.'],
+    "GA" : ["GA", "purple", '-.'],
+    "JAVA": ["CHHN (inexact)", "red", ':'],
+    "RK": ["Eilice (rank ordered)", "blue", '--']
 }
 def parse_file(file):
     res = {
@@ -34,12 +37,18 @@ def parse_file(file):
             res["Nums"].append(int(row[0]))
 
         if acc >= len(res[mode]):
-            res[mode].append(float(row[3]))
+            if(res["model"] == "JAVA" or res["model"] == "GA"):
+                res[mode].append([float(row[2])])
+            else:
+                res[mode].append([float(row[2])])
         else:
-            res[mode][acc] += float(row[3])
+            if(res["model"] == "JAVA" or res["model"] == "GA"):
+                res[mode][acc].append(float(row[2]))
+            else:
+                res[mode][acc].append(float(row[2]))
         acc += 1
 
-    res["Inserting"] = [x/3. for x in res["Inserting"]]
+    res["Inserting"] = [sorted(x)[len(x)//2] for x in res["Inserting"]]
     res["Removing"] = res["Removing"].sort()
     return res
 
@@ -48,16 +57,14 @@ def make_plot(data):
     plt.tight_layout()
     ls = ['-','--','-.',(0,(3,2,1,2,1,2)),':']
     cl = ["orange","blue","green"]
-    i = 0;t
     fig, ax = plt.subplots()
     for d in data:
         ax.plot(d["Nums"],d["Inserting"],label = trans[d["model"]][0],c=trans[d["model"]][1],ls=trans[d["model"]][2])
-        i+=1
 
     #ax.legend(loc="upper left")
-    ax.set(xlabel="No. of points",ylabel="Time in seconds",title="Update time on truncated normal distribution")
+    ax.set(xlabel="No. of points",ylabel="Time in seconds",title="Dynamic construction time on uniform data",xlim=[50000,1e6],ylim=[0,900])
     ax.legend()
-    fig.savefig("update_trunc.png", dpi=300.)
+    fig.savefig("construct_unif.png", dpi=300.)
 
 def main():
     # Parse

@@ -6,6 +6,6 @@ set(CMAKE_CXX_FLAGS "-O3")
 
 find_package(CGAL)
 
-add_executable(DynamicConvexHull AvlTree.h CHTree.h main.cpp util.h CQTree.h)
+add_executable(DynamicConvexHull include/AvlTree.h include/CHTree.h main.cpp include/util.h include/CQTree.h)
 
 target_link_libraries(DynamicConvexHull CGAL::CGAL)

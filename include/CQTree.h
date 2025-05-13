@@ -14,7 +14,9 @@ template<class Traits>
 struct comp_xy{
     static constexpr auto comp = typename Traits::Compare_xy_2();
     bool operator()(const typename Traits::Segment_2& lhs, const typename Traits::Segment_2& rhs) const {
-        return comp(lhs[0],rhs[0]) == CGAL::SMALLER;
+        bool a = comp(lhs[0],rhs[0]) == CGAL::SMALLER;
+        bool b = comp(lhs[1],rhs[1]) == CGAL::EQUAL;
+        return comp(lhs[0],rhs[0]) == CGAL::SMALLER || (comp(lhs[1],rhs[1]) == CGAL::EQUAL && comp(lhs[0],rhs[0]) != CGAL::EQUAL);
     }
 };
 
@@ -63,31 +65,31 @@ const Compare_slope compare_slope = Compare_slope();
 const Compare_at_x compare_at_x = Compare_at_x();
 
 protected:
-    // TODO: Degeneracy check
-    bool slope_comp(const Bridge& l, const Bridge& r, const bool lower){
-        //auto slopel = l[1].x() == l[2].x() ? 0 : (l[1].y()-l[0].y())/(l[1].x()-l[0].x());
-        //auto sloper = r[1].x() == r[2].x() ? 0 : (r[1].y()-r[0].y())/(r[1].x()-r[0].x());
-        //if(slopel == sloper) return true;
-        //else return slopel < sloper != lower;
+    template<bool lower>
+    bool slope_comp(const Bridge& l, const Bridge& r){
         CGAL::Comparison_result res = compare_slope(l,r);
         if(res == CGAL::EQUAL) return true;
         return (res == CGAL::SMALLER) != lower;
     }
 
-    bool m_comp(const Bridge& l, const Bridge& r, const Point& m, const bool lower) {
+    template<bool lower>
+    bool m_comp(const Bridge& l, const Bridge& r, const Point& m) {
         if(l.is_vertical()) return lower;
         if(r.is_vertical()) return !lower;
         CGAL::Comparison_result res = compare_at_x(m, l.supporting_line(), r.supporting_line());
         if (res == CGAL::EQUAL) return true;
         return (res == CGAL::SMALLER) == lower;
     }
-    bool cover_comp(const Point& p, const Bridge& b, const bool lower){
+
+    template<bool lower>
+    bool cover_comp(const Point& p, const Bridge& b){
         CGAL::Comparison_result res = compare_at_x(p,b.supporting_line());
         if(res == CGAL::EQUAL) return true;
         return (res == CGAL::SMALLER) == lower;
     }
 
-    Bridge findBridge(Node* v, const bool lower){
+    template<bool lower>
+    Bridge findBridge(Node* v){
         HNode* x = v->left->val.hulls[lower].root;
         HNode* y = v->right->val.hulls[lower].root;
         Bridge e_l, e_r, lr;
@@ -115,7 +117,7 @@ protected:
                 r = midpoint(y->val);
             }
             lr = Bridge(l,r);
-            if (!foundl && slope_comp(e_l,lr,lower)){
+            if (!foundl && slope_comp<lower>(e_l,lr)){
                 if(x->left) x = x->left;
                 else{
                     foundl = true;
@@ -123,7 +125,7 @@ protected:
                 }
                 undecided = false;
             }
-            if (!foundr && slope_comp(lr,e_r,lower)) {
+            if (!foundr && slope_comp<lower>(lr,e_r)) {
                 if(y->right) y = y->right;
                 else{
                     foundr = true;
@@ -132,8 +134,7 @@ protected:
                 undecided = false;
             }
             if (undecided) {
-                //T m = avgX(foundl ? l : x->val.b,foundr ? r: y->val.a);
-                if (foundr ||  (!foundl && m_comp(e_l,e_r,m,lower))) {
+                if (foundr ||  (!foundl && m_comp<lower>(e_l,e_r,m))) {
                     if(x->right) x = x->right;
                     else{
                         foundl = true;
@@ -153,21 +154,18 @@ protected:
 
     void onUpdate(Node* x){
         if(isLeaf(x)) return;
-        auto ub = findBridge(x,0);
-        auto lb = findBridge(x,1);
-        x->val.bridges[0] = ub;
-        x->val.bridges[1] = lb;
+        x->val.bridges[0] = findBridge<false>(x);
+        x->val.bridges[1] = findBridge<true>(x);
         CQueue<Traits> left, right;
         for(int i=0; i<2; ++i){
-            x->left->val.hulls[i].split(x->val.bridges[i],&left);
-            x->right->val.hulls[i].split(x->val.bridges[i],&right);
+            x->left->val.hulls[i].split({x->val.bridges[i][0],x->val.bridges[i][0]},&left);
+            x->right->val.hulls[i].split({x->val.bridges[i][1],x->val.bridges[i][1]},&right);
             x->left->val.hulls[i].join(x->val.bridges[i],&right);
             x->val.hulls[i].join(&(x->left->val.hulls[i]));
             x->left->val.hulls[i].join(&left);
         }
     }
 
-    // TODO: Split
     void onVisit(Node* x){
        if(isLeaf(x)) return;
        CQueue<Traits> right;
@@ -178,54 +176,28 @@ protected:
            x->right->val.hulls[i].join(&right);
        }
     }
-    /*
-    void hullPoints(HNode* x, std::vector<std::pair<T,T>>& acc){
+
+    void hullPoints(HNode* x, std::vector<Point>& acc){
         if(!x) return;
         hullPoints(x->left,acc);
-        acc.emplace_back(x->val.a.x,x->val.a.y);
+        acc.push_back(x->val[0]);
         hullPoints(x->right,acc);
     }
-    void hullPoints2(HNode* x, std::vector<std::pair<T,T>>& acc){
+
+    void hullPoints2(HNode* x, std::vector<Point>& acc){
        if(!x) return;
        hullPoints2(x->right,acc);
-       acc.emplace_back(x->val.b.x,x->val.b.y);
+       acc.push_back(x->val[1]);
        hullPoints2(x->left,acc);
     }
 
-    bool coversUpper(Point<T> p){
-        HNode* current = AVLTree<BCQ<T>>::root->val.uh.root;
-        while(current){
-            if(current->val.a.x <= p.x){
-                if(p.x <= current->val.b.x){
-                    // Check
-                    auto l = Line(current->val.a,current->val.b);
-                    return p.y <= l.eval(p.x);
-                } else current = current->right;
-            } else current = current->left;
-        }
-        return false;
-    }
-    bool coversLower(Point<T> p){
-        HNode* current = AVLTree<BCQ<T>>::root->val.lh.root;
-        while(current){
-            if(current->val.a.x <= p.x){
-                if(p.x <= current->val.b.x){
-                    // Check
-                    auto l = Line(current->val.a,current->val.b);
-                    return p.y >= l.eval(p.x);
-                } else current = current->right;
-            } else current = current->left;
-        }
-        return false;
-    }
-*/
-
-    bool covers(Point p, const bool lower){
+    template<bool lower>
+    bool covers(Point p){
         auto current = AVLTree<BCQ<Traits>>::root->val.hulls[lower].root;
         while(current){
             if(current->val.min().x() <= p.x()){
                 if(p.x() <= current->val.max().x()){
-                    return cover_comp(p,current->val,lower);
+                    return cover_comp<lower>(p,current->val);
                 } else current = current->right;
             } else current = current->left;
         }
@@ -242,20 +214,18 @@ public:
     }
 
     bool covers(Point p){
-        return covers(p,0) && covers(p,1);
+        return covers<false>(p) && covers<true>(p);
     }
 
-    /*
-    std::vector<std::pair<T,T>> upperHullPoints(){
-        std::vector<std::pair<T,T>> res;
-        if(AVLTree<BCQ<T>>::root) hullPoints2(AVLTree<BCQ<T>>::root->val.uh.root,res);
+    std::vector<Point> upperHullPoints(){
+        std::vector<Point> res;
+        if(this->root) hullPoints2(this->root->val.hulls[0].root,res);
         return res;
     }
-    std::vector<std::pair<T,T>> lowerHullPoints(){
-        std::vector<std::pair<T,T>> res;
-        if(AVLTree<BCQ<T>>::root) hullPoints(AVLTree<BCQ<T>>::root->val.lh.root,res);
+    std::vector<Point> lowerHullPoints(){
+        std::vector<Point> res;
+        if(this->root) hullPoints(this->root->val.hulls[1].root,res);
         return res;
     }
-    */
 };
 #endif //DYNAMICCONVEXHULL_CQTREE_H
