@@ -85,7 +85,7 @@ protected:
     bool cover_comp(const Point& p, const Bridge& b){
         CGAL::Comparison_result res = compare_at_x(p,b.supporting_line());
         if(res == CGAL::EQUAL) return true;
-        return (res == CGAL::SMALLER) == lower;
+        return (res == CGAL::LARGER) == lower;
     }
 
     template<bool lower>
