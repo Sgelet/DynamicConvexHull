@@ -76,8 +76,8 @@ void runtimeTest(const int test, const int window_size){
 
     std::shuffle(data_p2.begin(),data_p2.end(),engine);
 
-    auto CQ = CQTree<I>();
-    auto CH = CHTree<I>();
+    auto CQ = CQTree<K>();
+    auto CH = CHTree<K>(); // Replacing with CQTree<I> lets you do comparison with inexact kernel
 
     std::vector<Point_2> out = {};
 
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]){
 }
 
 
-bool verify(CHTree<I>& CH, CQTree<I>& CQ, std::vector<std::pair<double,double>>& data, int size){
+bool verify(CHTree<K>& CH, CQTree<K>& CQ, std::vector<std::pair<double,double>>& data, int size){
     std::vector<Point_2> out = {};
     std::vector<Point_2> temp;
     temp.reserve(size);
@@ -218,8 +218,8 @@ bool verificationTest(int verify_step, bool shuffle) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::vector<std::pair<double,double>> data;
-    auto CH = CHTree<I>();
-    auto CQ = CQTree<I>();
+    auto CH = CHTree<K>();
+    auto CQ = CQTree<K>();
     double x;
     double y;
     while(std::cin >> x){
