@@ -9,7 +9,10 @@
 #include <CGAL/convex_hull_2.h>
 #include <CGAL/ch_graham_andrew.h>
 
+#include "include/inexact.h"
+
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+typedef Inexact_kernel<double> I;
 typedef K::Point_2 Point_2;
 
 bool verificationTest(int verify_step, bool shuffle);
@@ -73,8 +76,8 @@ void runtimeTest(const int test, const int window_size){
 
     std::shuffle(data_p2.begin(),data_p2.end(),engine);
 
-    auto CQ = CQTree<K>();
-    auto CH = CHTree<K>();
+    auto CQ = CQTree<I>();
+    auto CH = CHTree<I>();
 
     std::vector<Point_2> out = {};
 
@@ -92,8 +95,8 @@ void runtimeTest(const int test, const int window_size){
         else if(test == 4) CGAL::convex_hull_2(data_p2.begin(),data_p2.begin()+(i+1)*window_size,std::back_inserter(out));
         else {
             for (size_t j = i * window_size; j < (i + 1) * window_size; j++) {
-                if(test == 1) CH.insert(data_p2[j]);
-                else CQ.insert(data_p2[j]);
+                if(test == 1) CH.insert({data_p2[j].x(),data_p2[j].y()});
+                else CQ.insert({data_p2[j].x(),data_p2[j].y()});
             }
         }
 
@@ -115,14 +118,15 @@ void runtimeTest(const int test, const int window_size){
 
         t0 = hrc::now();
 
+
         for(auto u: updates){
             if(test == 1){
-                if(u.first) CH.remove(data_p2[u.second]);
-                else CH.insert(data_p2[(i+1)*window_size+u.second]);
+                if(u.first) CH.remove({data_p2[u.second].x(),data_p2[u.second].y()});
+                else CH.insert({data_p2[(i+1)*window_size+u.second].x(),data_p2[(i+1)*window_size+u.second].y()});
             }
             if(test == 2){
-                if(u.first) CQ.remove(data_p2[u.second]);
-                else CQ.insert(data_p2[(i+1)*window_size+u.second]);
+                if(u.first) CQ.remove({data_p2[u.second].x(),data_p2[u.second].y()});
+                else CQ.insert({data_p2[(i+1)*window_size+u.second].x(),data_p2[(i+1)*window_size+u.second].y()});
             }
         }
 
@@ -132,12 +136,12 @@ void runtimeTest(const int test, const int window_size){
 
         for(auto u: updates){
             if(test == 1){
-                if(u.first) CH.insert(data_p2[u.second]);
-                else CH.remove(data_p2[(i+1)*window_size+u.second]);
+                if(u.first) CH.insert({data_p2[u.second].x(),data_p2[u.second].y()});
+                else CH.remove({data_p2[(i+1)*window_size+u.second].x(),data_p2[(i+1)*window_size+u.second].x()});
             }
             if(test == 2){
-                if(u.first) CQ.insert(data_p2[u.second]);
-                else CQ.remove(data_p2[(i+1)*window_size+u.second]);
+                if(u.first) CQ.insert({data_p2[u.second].x(),data_p2[u.second].y()});
+                else CQ.remove({data_p2[(i+1)*window_size+u.second].x(),data_p2[(i+1)*window_size+u.second].x()});
             }
         }
         std::cout<<std::endl;
@@ -168,7 +172,7 @@ int main(int argc, char* argv[]){
 }
 
 
-bool verify(CHTree<K>& CH, CQTree<K>& CQ, std::vector<std::pair<double,double>>& data, int size){
+bool verify(CHTree<I>& CH, CQTree<I>& CQ, std::vector<std::pair<double,double>>& data, int size){
     std::vector<Point_2> out = {};
     std::vector<Point_2> temp;
     temp.reserve(size);
@@ -214,8 +218,8 @@ bool verificationTest(int verify_step, bool shuffle) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::vector<std::pair<double,double>> data;
-    auto CH = CHTree<K>();
-    auto CQ = CQTree<K>();
+    auto CH = CHTree<I>();
+    auto CQ = CQTree<I>();
     double x;
     double y;
     while(std::cin >> x){

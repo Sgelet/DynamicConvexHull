@@ -14,8 +14,6 @@ template<class Traits>
 struct comp_xy{
     static constexpr auto comp = typename Traits::Compare_xy_2();
     bool operator()(const typename Traits::Segment_2& lhs, const typename Traits::Segment_2& rhs) const {
-        bool a = comp(lhs[0],rhs[0]) == CGAL::SMALLER;
-        bool b = comp(lhs[1],rhs[1]) == CGAL::EQUAL;
         return comp(lhs[0],rhs[0]) == CGAL::SMALLER || (comp(lhs[1],rhs[1]) == CGAL::EQUAL && comp(lhs[0],rhs[0]) != CGAL::EQUAL);
     }
 };
